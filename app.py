@@ -15,6 +15,14 @@ def db_connection():
 		print(e)
 	return conn
 
+@app.route('/')
+def home():
+    return 'API is healthy!', 200
+
+@app.route('/health', methods=['GET'])
+def health():
+    return 'API is healthy!', 200
+
 @app.route("/students" , methods=["GET","POST"])
 def students():
 	#access the db connection

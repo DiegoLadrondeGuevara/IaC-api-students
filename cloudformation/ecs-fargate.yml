@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # Define the ECS Cluster
+  MyCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: api-students-cluster
+  
+  # Define the Task Definition
+  MyTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: api-students-task
+      NetworkMode: awsvpc
+      Cpu: "256"
+      Memory: "512"
+      ContainerDefinitions:
+        - Name: api-students-container
+          Image: "149521578179.dkr.ecr.us-east-1.amazonaws.com/api-students"
+          PortMappings:
+            - ContainerPort: 8000    # Cambiado a 8000
+              HostPort: 8000         # Cambiado a 8000
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/api-students
+              awslogs-stream-prefix: api
+              awslogs-region: us-east-1
+      ExecutionRoleArn: arn:aws:iam::478701513931:role/LabRole  # IAM Role para la ejecución
+      TaskRoleArn: arn:aws:iam::478701513931:role/LabRole  # IAM Role para la tarea
+
+  # Define the Load Balancer Target Group
+  MyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: api-students-tg
+      Port: 8000            # Cambiado a 8000
+      Protocol: HTTP
+      VpcId: vpc-08ed223bfdfc22f50
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      UnhealthyThresholdCount: 3
+      HealthyThresholdCount: 3
+      HealthCheckTimeoutSeconds: 5
+  
+  # Define the ECS Service
+  MyECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref MyCluster
+      ServiceName: api-students-service
+      TaskDefinition: !Ref MyTaskDefinition
+      DesiredCount: 2  # Número de tareas a ejecutar
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - subnet-0587d39bd30583f10  # Subnet en us-east-1c
+            - subnet-0de6def124f822a7e  # Subnet en us-east-1e
+          SecurityGroups:
+            - sg-09ce4ffb028b6bb1d  # Security Group
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: api-students-container
+          ContainerPort: 8000      # Cambiado a 8000
+          TargetGroupArn: !Ref MyTargetGroup
+          
+  # Create Log Group for ECS Service logs
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/api-students
+      RetentionInDays: 7
